@@ -1,94 +1,190 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from static.model import qc
+from scipy.fft import fft, fftfreq
+from typing import List, Tuple, Optional
+import logging
 
+# Configuración de logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s: %(message)s')
 
-# Clase para representar una onda sinusoidal
-class TimeSeries:
-    def __init__(self, amplitud, frecuencia, fase):
-        self.amplitud = amplitud
-        self.frecuencia = frecuencia
-        self.fase = fase
+class QuantumWave:
+    """
+    Clase para modelar ondas cuánticas con propiedades avanzadas
+    """
+    def __init__(
+        self, 
+        amplitude: float, 
+        frequency: float, 
+        phase: float, 
+        quantum_number: Optional[int] = None
+    ):
+        """
+        Inicializa una onda cuántica
+        
+        Args:
+            amplitude (float): Amplitud de la onda
+            frequency (float): Frecuencia de la onda
+            phase (float): Fase inicial de la onda
+            quantum_number (int, optional): Número cuántico asociado
+        """
+        self.amplitude = amplitude
+        self.frequency = frequency
+        self.phase = phase
+        self.quantum_number = quantum_number
 
-    def evaluate(self, x):
-        return self.amplitud * np.sin(2 * np.pi * self.frecuencia * x + self.fase)
-    def colapse(self, z, y):
-        return self.fase * y_superpuesta + z + self.frecuencia(self.amplitud / np.sum(np.abs(y)))
+    def evaluate(self, x: np.ndarray) -> np.ndarray:
+        """
+        Evalúa la onda en un conjunto de puntos
+        
+        Args:
+            x (np.ndarray): Puntos de evaluación
+        
+        Returns:
+            np.ndarray: Valores de la onda
+        """
+        return self.amplitude * np.sin(2 * np.pi * self.frequency * x + self.phase)
 
-# Parámetros de las onda_incidente.
-amplitud = 0.5
-frecuencia = 1.5
-fase = -np.pi / 21
+    def collapse(
+        self, 
+        superposed_wave: np.ndarray, 
+        y: np.ndarray
+    ) -> float:
+        """
+        Simula el colapso de la función de onda
+        
+        Args:
+            superposed_wave (np.ndarray): Onda superpuesta
+            y (np.ndarray): Onda original
+        
+        Returns:
+            float: Estado colapsado
+        """
+        normalization = self.amplitude / np.sum(np.abs(y))
+        return np.random.choice(superposed_wave, p=np.abs(superposed_wave) / np.sum(np.abs(superposed_wave)))
 
-# Crear las onda_incidente.
-onda_incidente = TimeSeries(amplitud, frecuencia, fase)
-onda_reflejada = TimeSeries(amplitud, frecuencia, fase + np.pi)  # Fase invertida para onda reflejada.
+class QuantumSimulation:
+    """
+    Clase para simulación de sistemas cuánticos
+    """
+    def __init__(
+        self, 
+        waves: List[QuantumWave], 
+        x_range: Tuple[float, float] = (0, 10), 
+        num_points: int = 500
+    ):
+        """
+        Inicializa la simulación cuántica
+        
+        Args:
+            waves (List[QuantumWave]): Lista de ondas cuánticas
+            x_range (Tuple[float, float]): Rango de x
+            num_points (int): Número de puntos de muestreo
+        """
+        self.waves = waves
+        self.x = np.linspace(x_range[0], x_range[1], num_points)
+        self.superposed_wave = self._superpose_waves()
 
-# Generar los valores de x.
-x = np.linspace(0, 10, 500)
+    def _superpose_waves(self) -> np.ndarray:
+        """
+        Superpone las ondas cuánticas
+        
+        Returns:
+            np.ndarray: Onda superpuesta
+        """
+        return np.sum([wave.evaluate(self.x) for wave in self.waves], axis=0)
 
-# Evaluar las ondas en los puntos x.
-y_incidente = onda_incidente.evaluate(x)
-y_reflejada = onda_reflejada.evaluate(x)
+    def perform_fft(self) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Realiza la Transformada Rápida de Fourier
+        
+        Returns:
+            Tuple[np.ndarray, np.ndarray]: Frecuencias y magnitudes espectrales
+        """
+        N = len(self.x)
+        T = self.x[1] - self.x[0]
+        
+        yf = fft(self.superposed_wave)
+        xf = fftfreq(N, T)[:N//2]
+        
+        return xf, 2.0/N * np.abs(yf[0:N//2])
 
-# Superposición de las ondas.
-y_superpuesta = y_incidente + y_reflejada
+    def visualize(self):
+        """
+        Visualiza la simulación cuántica
+        """
+        try:
+            fig, axs = plt.subplots(2, 2, figsize=(15, 10))
+            
+            # Ondas individuales
+            for wave in self.waves:
+                axs[0, 0].plot(
+                    self.x, 
+                    wave.evaluate(self.x), 
+                    label=f"Onda (A={wave.amplitude}, f={wave.frequency})"
+                )
+            
+            # Onda superpuesta
+            axs[0, 0].plot(
+                self.x, 
+                self.superposed_wave, 
+                label="Onda Superpuesta", 
+                color="green", 
+                linewidth=2
+            )
+            
+            axs[0, 0].set_title("Ondas Cuánticas")
+            axs[0, 0].set_xlabel("x")
+            axs[0, 0].set_ylabel("ψ(x)")
+            axs[0, 0].legend()
+            axs[0, 0].grid(True)
 
-# Parámetros de las onda_objetivo.
-colapse_amplitud = 0.5
-colapse_frecuencia = 1.5
-colapse_fase = np.pi / -21
-# Generar los valores de z.
-z = np.linspace(0, 10, 500)
-# Crear las onda_objetivo.
-onda_objetivo = TimeSeries(amplitud, frecuencia, fase)
-onda_reflejada = TimeSeries(amplitud, frecuencia, fase - np.pi)
+            # Espectro de frecuencia
+            xf, yf = self.perform_fft()
+            axs[0, 1].plot(xf, yf, color="red")
+            axs[0, 1].set_title("Espectro de Frecuencia")
+            axs[0, 1].set_xlabel("Frecuencia")
+            axs[0, 1].set_ylabel("Amplitud Espectral")
+            axs[0, 1].grid(True)
 
-# Generar los valores de x, y.
-x = np.linspace(0, 10, 500)
-y = np.linspace(0, 10, 500)
+            # Distribución de probabilidad
+            probabilities = np.abs(self.superposed_wave) / np.sum(np.abs(self.superposed_wave))
+            axs[1, 0].hist(self.superposed_wave, weights=probabilities, bins=30, color="purple")
+            axs[1, 0].set_title("Distribución de Probabilidad")
+            axs[1, 0].set_xlabel("Valor de Onda")
+            axs[1, 0].set_ylabel("Probabilidad")
 
-# Evaluar las ondas en los puntos x
-y_incidente = onda_incidente.evaluate(z)
-y_reflejada = onda_reflejada.evaluate(x)
-# Superposición de las ondas
-z_superpuesta = y_incidente + y_reflejada
+            # Colapso de onda
+            collapsed_state = np.random.choice(
+                self.superposed_wave, 
+                p=probabilities
+            )
+            axs[1, 1].axhline(
+                y=collapsed_state, 
+                color='red', 
+                linestyle='--', 
+                label=f"Estado Colapsado: {collapsed_state:.4f}"
+            )
+            axs[1, 1].set_title("Colapso de Onda")
+            axs[1, 1].set_xlabel("x")
+            axs[1, 1].set_ylabel("Valor Colapsado")
+            axs[1, 1].legend()
 
+            plt.tight_layout()
+            plt.show()
 
-# Simular el colapso de onda
-def colapso_onda(y_superpuesta):
-    # Calcular probabilidades (normalizar)
-    probabilidades = np.abs(y_superpuesta) / np.sum(np.abs(y_superpuesta))
-    # Seleccionar un estado basado en las probabilidades
-    estado_colapsado = np.random.choice(y_superpuesta, p=probabilidades)
-    return estado_colapsado
+        except Exception as e:
+            logging.error(f"Error en visualización: {e}")
 
+def main():
+    # Crear ondas cuánticas
+    waves = [
+        QuantumWave(amplitude=0.5, frequency=1.5, phase=-np.pi/21, quantum_number=1),
+        QuantumWave(amplitude=0.3, frequency=2.0, phase=np.pi/4, quantum_number=2)
+    ]
 
-estado_colapsado = colapso_onda(y_superpuesta)
+    # Iniciar simulación
+    simulation = QuantumSimulation(waves)
+    simulation.visualize()
 
-# Graficar las ondas
-plt.plot(x, y_incidente, label="Onda Incidente", color="blue")
-plt.plot(x, y_reflejada, label="Onda Reflejada", color="red")
-plt.plot(x, y_superpuesta, label="Onda Superpuesta", color="green")
-plt.plot(z, z_superpuesta, label="Onda Objetivo", color="orange")
-plt.axhline(y=estado_colapsado, color='purple', linestyle='--', label="Estado Colapsado")
-plt.xlabel("x")
-plt.ylabel("ψ(x)")
-plt.title("Superposición y Colapso de Ondas")
-plt.grid(True)
-plt.legend()
-plt.show()
-print(qc)
-# Graficar las ondas
-plt.plot(x, y_incidente, label="Onda Incidente", color="blue")
-plt.plot(x, y_reflejada, label="Onda Reflejada", color="red")
-plt.plot(x, y_superpuesta, label="Onda Superpuesta", color="green")
-plt.plot(z, z_superpuesta, label="Onda Objetivo", color="orange")
-plt.xlabel("x")
-plt.ylabel("ψ(x)")
-plt.title("Superposición de Ondas")
-plt.grid(True)
-plt.legend()
-plt.show()
-
-
+if __name__ == "__main__":
+    main()
