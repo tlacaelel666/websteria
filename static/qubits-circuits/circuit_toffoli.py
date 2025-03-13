@@ -61,9 +61,9 @@ def mahalanobis_distance(x, mean, cov):
         warnings.warn("Singular covariance matrix. Returning Euclidean distance.")
         return np.linalg.norm(x - mean)
 
-def conway_rules(node, active_neighbors):
+def action_rules(node, active_neighbors):
     """
-    Applies Conway's Game of Life-like rules to determine the next state of a node.
+    Applies  Action rules to determine the next state of a node.
     Args:
         node: The current state of the node.
         active_neighbors: The number of active neighbors.
